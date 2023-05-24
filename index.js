@@ -22,6 +22,20 @@ module.context.use(router);
 
 // --------------------- Posts ---------------------
 
+// Retrieve All
+router.get('posts/all', function (req, res) {
+    const query = `
+    for post in posts
+    return post
+    `
+    const results = db._query(query).toArray()
+
+    res.send( { results } )
+})
+.response(joi.object().required(), 'Posts')
+.summary('Retrieve all posts')
+.description('Retrieves a post by ID');
+
 // Retrieve
 router.get('posts/get/:id', function (req, res) {
     try {
@@ -44,7 +58,7 @@ router.get('posts/get/:id', function (req, res) {
 // Delete
 router.post('posts/delete', function (req, res) {
     const body = req.body;
-    
+
     let post;
     try {
         post = col_posts.document(body.post_id);
@@ -116,3 +130,4 @@ router.post('posts/create', function (req, res) {
 }).required(), 'Resulting post ID')
 .summary('Create a new post')
 .description("Creates a new post with the supplied body under the supplied user's profile.");
+
