@@ -36,10 +36,18 @@ router.post('posts/create', function (req, res) {
         }
         res.throw(404, 'User does not exist');
     }
-    
-    const post = col_posts.save( {body: body.post_body} );
 
-    edge_posted_by.save({ _from: post._id, _to: user._id });
+    const query = `
+    insert { body: @body, date: DATE_ISO8601(DATE_NOW()) } 
+    into posts
+    let post = NEW
+    insert { _from: post._id, _to: @user_id } into posted_by
+    return post
+    `;
+
+    const params = { body: body.post_body, user_id: user._id };
+    
+    const post = db._query(query, params).toArray()[0]; // this cool? probably not
 
     res.send({post_id: post._id});
 
