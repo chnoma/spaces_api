@@ -26,7 +26,16 @@ module.context.use(router);
 router.get('posts/all', function (req, res) {
     const query = `
     for post in posts
-    return post
+    LIMIT 100
+    let user = (
+        for v, e in
+        OUTBOUND
+        post posted_by
+        let user = document(e._to)
+        return {username: user._key,
+                display_name: user.display_name}
+    )[0]
+    return {body: post.body, user}
     `
     const results = db._query(query).toArray()
 
