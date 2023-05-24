@@ -24,6 +24,7 @@ const root_spaces_protected = {
     "entertainment": false,
     "gaming": false,
     "politics": false,
+    "news": false
 }
 
 
