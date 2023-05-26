@@ -20,6 +20,55 @@ module.context.use(router);
 
 // TODO: Access validation accross the board
 
+
+
+// -------------------- Spaces ---------------------
+
+// New
+router.post('spaces/create', function (req, res) {
+    const body = req.body;
+
+    let root_space;
+    try {
+        root_space = col_spaces.document(body.root_id);
+    }
+    catch (e) {
+        if (!e.isArangoError || e.errorNum !== DOC_NOT_FOUND) {
+            throw e;
+        }
+        res.throw(404, 'A valid root for the space must be provided');
+    }
+
+    const query = `
+    let root = document(@root_id)
+    insert { name: @name, 
+        restricted: @restricted,
+        date_created: DATE_ISO8601(DATE_NOW())} 
+    into spaces
+    let space = NEW
+    insert { _from: root._id, _to: space._id } into space_structure
+    return space
+    `;
+
+    const params = { name: body.name, root_id: body.root_id, restricted: body.restricted };
+    
+    const space = db._query(query, params).toArray()[0]; // this cool? probably not
+
+    res.send({space_id: space._id});
+
+})
+.body(joi.object({
+    root_id: joi.string().required(),
+    name: joi.string().required(),
+    restricted: joi.boolean().required()
+}).required(), 'Root space ID, name of new space, and whether it is a write protected space or not')
+.response(joi.object({
+    space: joi.string().required()
+}).required(), 'Resulting space ID')
+.summary('Create a new space')
+.description("Creates a new space with the supplied name under the root space ID supplied.");
+
+
 // --------------------- Posts ---------------------
 
 // Retrieve All
