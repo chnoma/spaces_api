@@ -104,9 +104,44 @@ router.get('posts/all', function (req, res) {
 })
 .response(joi.object().required(), 'Posts')
 .summary('Retrieve all posts')
-.description('Retrieves a post by ID');
+.description('Retrieves all posts');
 
-// Retrieve
+// Retrieve by space
+router.get('posts/space/:id', function (req, res) {
+    let space;
+    try {
+        space = col_spaces.document(req.pathParams.id);
+    }
+    catch (e) {
+        if (!e.isArangoError || e.errorNum !== DOC_NOT_FOUND) {
+            throw e;
+        }
+        res.throw(404, 'Space does not exist');
+    }
+    
+    const query = `
+    let root_space = document(@root_space)
+    for space, edge in 0..10 OUTBOUND root_space space_structure
+        FOR post IN INBOUND space posted_to
+            let user = (
+                for v, e in
+                OUTBOUND
+                post posted_by
+                let user = document(e._to)
+                return {username: user._key,
+                        display_name: user.display_name}
+            )[0]
+            return {post, space, user}
+    `
+    const results = db._query(query, {root_space: space._id}).toArray()
+    
+    res.send( { results } )
+})
+.response(joi.object().required(), 'Posts')
+.summary('Retrieve all posts from a given space ID')
+.description('Retrieve all posts from a given space ID');
+
+// Retrieve by ID
 router.get('posts/get/:id', function (req, res) {
     try {
         const data = col_posts.document(req.pathParams.id);
@@ -129,9 +164,8 @@ router.get('posts/get/:id', function (req, res) {
 router.post('posts/delete', function (req, res) {
     const body = req.body;
 
-    let post;
     try {
-        post = col_posts.document(body.post_id);
+        const post = col_posts.document(body.post_id);
     }
     catch (e) {
         if (!e.isArangoError || e.errorNum !== DOC_NOT_FOUND) {
@@ -165,9 +199,8 @@ router.post('posts/delete', function (req, res) {
 router.post('posts/create', function (req, res) {
     const body = req.body;
     
-    let user;
     try {
-        user = col_users.document(body.user_id);
+        const user = col_users.document(body.user_id);
     }
     catch (e) {
         if (!e.isArangoError || e.errorNum !== DOC_NOT_FOUND) {
