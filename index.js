@@ -71,7 +71,8 @@ router.post('spaces/create', function (req, res) {
 
 // --------------------- Posts ---------------------
 
-// Retrieve All
+// Retrieve All -- we shouldn't have spaces 10 deep ever anyway
+// TODO: Limit scope of data return
 router.get('posts/all', function (req, res) {
     const query = `
     for post in posts
@@ -84,7 +85,18 @@ router.get('posts/all', function (req, res) {
         return {username: user._key,
                 display_name: user.display_name}
     )[0]
-    return {body: post.body, key: post._key, user}
+    let spaces = (
+        for v, e in
+        OUTBOUND 
+        post posted_to
+            let space = document(e._to)
+            let root = document("spaces/$")
+            FOR path IN 0..10 INBOUND K_PATHS
+            space TO root
+            space_structure
+            return path.vertices
+    )
+    return {body: post.body, key: post._key, user, spaces}
     `
     const results = db._query(query).toArray()
 
