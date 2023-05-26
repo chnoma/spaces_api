@@ -35,7 +35,7 @@ router.get('posts/all', function (req, res) {
         return {username: user._key,
                 display_name: user.display_name}
     )[0]
-    return {body: post.body, user}
+    return {body: post.body, key: post._key, user}
     `
     const results = db._query(query).toArray()
 
