@@ -164,15 +164,27 @@ router.post('posts/create', function (req, res) {
         res.throw(404, 'User does not exist');
     }
 
+    let space;
+    try {
+        space = col_spaces.document(body.space_id);
+    }
+    catch (e) {
+        if (!e.isArangoError || e.errorNum !== DOC_NOT_FOUND) {
+            throw e;
+        }
+        res.throw(404, 'Space does not exist');
+    }
+
     const query = `
-    insert { body: @body, date: DATE_ISO8601(DATE_NOW()) } 
+    insert { body:@body, date_created: DATE_ISO8601(DATE_NOW()) } 
     into posts
     let post = NEW
     insert { _from: post._id, _to: @user_id } into posted_by
+    insert { _from: post._id, _to: @space_id } into posted_to
     return post
     `;
 
-    const params = { body: body.post_body, user_id: user._id };
+    const params = { body: body.post_body, user_id: user._id, space_id: space._id };
     
     const post = db._query(query, params).toArray()[0]; // this cool? probably not
 
@@ -181,11 +193,12 @@ router.post('posts/create', function (req, res) {
 })
 .body(joi.object({
     post_body: joi.string().required(),
-    user_id: joi.string().required()
-}).required(), 'Post body and user ID')
+    user_id: joi.string().required(),
+    space_id: joi.string().required()
+}).required(), 'Post body, Space ID, and user ID')
 .response(joi.object({
     post_id: joi.string().required()
 }).required(), 'Resulting post ID')
 .summary('Create a new post')
-.description("Creates a new post with the supplied body under the supplied user's profile.");
+.description("Creates a new post with the supplied properties.");
 
