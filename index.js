@@ -239,6 +239,7 @@ router.post('posts/space_path/', function (req, res) {
     )[0]
     for space, edge in 0..10 OUTBOUND root_space space_structure
         FOR post IN INBOUND space posted_to
+            SORT post.date_created DESC
             let user = (
                 for v, e in
                 OUTBOUND
@@ -280,9 +281,9 @@ router.get('posts/get/:id', function (req, res) {
 // Delete post
 router.post('posts/delete', function (req, res) {
     const body = req.body;
-
+    let post;
     try {
-        const post = col_posts.document(body.post_id);
+        post = col_posts.document(body.post_id);
     }
     catch (e) {
         if (!e.isArangoError || e.errorNum !== DOC_NOT_FOUND) {
