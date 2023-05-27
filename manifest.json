@@ -1,9 +1,16 @@
  {
-    "engines": {
-        "arangodb": "^3.0.0"
-    },
     "main": "index.js",
     "scripts": {
         "setup": "scripts/setup.js"
+    },
+    "configuration" : {
+        "maximumDepth": {
+            "description": "The maximum depth a space can be created at",
+            "default": 4,
+            "type": "int"
+        }
+    },
+    "engines": {
+        "arangodb": "^3.0.0"
     }
  }

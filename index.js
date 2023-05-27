@@ -20,6 +20,7 @@ module.context.use(router);
 
 // TODO: Access validation accross the board
 
+// TODO: Limit scope of data return
 
 
 // -------------------- Spaces ---------------------
@@ -68,11 +69,60 @@ router.post('spaces/create', function (req, res) {
 .summary('Create a new space')
 .description("Creates a new space with the supplied name under the root space ID supplied.");
 
+// New space by path (creates subspaces automatically)
+router.post('spaces/create_by_path', function (req, res) {
+    const path = req.body.path;
+    const elements = path.split("/")
+    if (path.slice(0, 1) != "$") {
+        resp.send(404, "Invalid path")
+    }
+
+    let query_create_space = `
+    let root = document(@root_id)
+    insert { name: @name, 
+        restricted: @restricted,
+        abs_path: @abs_path,
+        date_created: DATE_ISO8601(DATE_NOW())} 
+    into spaces
+    let space = NEW
+    insert { _from: root._id, _to: space._id } into space_structure
+    return space
+    `;
+
+    let query_path = `
+    let root_space = (
+        FOR space in spaces
+            FILTER space.abs_path == @abs_path
+            return space
+    )[0]
+    return root_space
+    `;
+    
+    let x = []
+    let last_space = col_spaces.document("$");
+
+    for(let i = 1; i < elements.length+1; i++) {
+        var abs_path = elements.slice(0,i).join("/");
+        var space = db._query(query_path, {abs_path: elements.slice(0,i).join("/")}).toArray()[0]
+        if(space === null) {
+            space = db._query(query_create_space, {root_id: last_space._id, name:elements[i-1], restricted: false, abs_path: abs_path}).toArray()[0]
+        }
+        x.push(space);
+        last_space = space;
+    }
+
+    res.send({x});
+
+})
+.body(joi.object({
+    path: joi.string().required()
+}).required(), 'Desired path of new space')
+.summary('Create a new space')
+.description("Creates a new space with the supplied name under the root space ID supplied.");
 
 // --------------------- Posts ---------------------
 
 // Retrieve All -- we shouldn't have spaces 10 deep ever anyway
-// TODO: Limit scope of data return
 router.get('posts/all', function (req, res) {
     const query = `
     for post in posts
@@ -141,7 +191,7 @@ router.get('posts/space/:id', function (req, res) {
 .summary('Retrieve all posts from a given space ID')
 .description('Retrieve all posts from a given space ID');
 
-// Retrieve by space's path
+// Retrieve posts by space's path
 router.post('posts/space_path/', function (req, res) {
     const body = req.body;
 
@@ -163,7 +213,7 @@ router.post('posts/space_path/', function (req, res) {
             )[0]
             return {post, space, user}
     `
-    const results = db._query(query, {abs_path: body.space_path}).toArray()
+    const results = db._query(query, {abs_path: body.space_path}).toArray();
     res.send( { results } )
 })
 .body(joi.object({
@@ -172,7 +222,7 @@ router.post('posts/space_path/', function (req, res) {
 .summary('List all posts under a space path')
 .description("List all posts under a space with the given absolute path");
 
-// Retrieve by ID
+// Retrieve post by ID
 router.get('posts/get/:id', function (req, res) {
     try {
         const data = col_posts.document(req.pathParams.id);
@@ -191,7 +241,7 @@ router.get('posts/get/:id', function (req, res) {
 .description('Retrieves a post by ID');
 
 
-// Delete
+// Delete post
 router.post('posts/delete', function (req, res) {
     const body = req.body;
 
@@ -226,7 +276,7 @@ router.post('posts/delete', function (req, res) {
 .summary('Delete a post')
 .description("Deletes a post with a given ID, and its related connections.");
 
-// New
+// New post
 router.post('posts/create', function (req, res) {
     const body = req.body;
     
