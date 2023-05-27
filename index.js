@@ -315,9 +315,9 @@ router.post('posts/delete', function (req, res) {
 // New post
 router.post('posts/create', function (req, res) {
     const body = req.body;
-    
+    let user;
     try {
-        const user = col_users.document(body.user_id);
+        user = col_users.document(body.user_id);
     }
     catch (e) {
         if (!e.isArangoError || e.errorNum !== DOC_NOT_FOUND) {
