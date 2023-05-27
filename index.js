@@ -74,7 +74,9 @@ router.post('spaces/create_by_path', function (req, res) {
     const path = req.body.path;
     const elements = path.split("/")
     if (path.slice(0, 1) != "$") {
-        resp.send(404, "Invalid path")
+        res.send(404, "Invalid path")
+    } else if (elements.length > 4) {
+        res.send(400, "Exceeds maximum depth")
     }
 
     let query_create_space = `
@@ -98,14 +100,20 @@ router.post('spaces/create_by_path', function (req, res) {
     return root_space
     `;
     
-    let x = []
+    let x = [];
     let last_space = col_spaces.document("$");
 
     for(let i = 1; i < elements.length+1; i++) {
         var abs_path = elements.slice(0,i).join("/");
-        var space = db._query(query_path, {abs_path: elements.slice(0,i).join("/")}).toArray()[0]
+        var space = db._query(query_path, {abs_path: elements.slice(0,i).join("/")}).toArray()[0];
+        let name;
         if(space === null) {
-            space = db._query(query_create_space, {root_id: last_space._id, name:elements[i-1], restricted: false, abs_path: abs_path}).toArray()[0]
+            if (i == 1) {
+                name = elements[i-1].slice(1);
+            } else {
+                name = elements[i-1];
+            }
+            space = db._query(query_create_space, {root_id: last_space._id, name, restricted: false, abs_path: abs_path}).toArray()[0];
         }
         x.push(space);
         last_space = space;
@@ -119,6 +127,34 @@ router.post('spaces/create_by_path', function (req, res) {
 }).required(), 'Desired path of new space')
 .summary('Create a new space')
 .description("Creates a new space with the supplied name under the root space ID supplied.");
+
+// Retrieve Space by path
+router.post('spaces/get_by_path', function (req, res) {
+    const path = req.body.path;
+
+    if (path.slice(0, 1) != "$") {
+        res.send(404, "Invalid path")
+    }
+
+    let query_path = `
+    let root_space = (
+        FOR space in spaces
+            FILTER space.abs_path == @abs_path
+            return space
+    )[0]
+    return root_space
+    `;
+    
+    let space = db._query(query_path, {abs_path: path}).toArray()[0];
+
+    res.send({space});
+
+})
+.body(joi.object({
+    path: joi.string().required()
+}).required(), 'Path to space')
+.summary('Retrieve a space by path')
+.description("Retrieve a space by path");
 
 // --------------------- Posts ---------------------
 
