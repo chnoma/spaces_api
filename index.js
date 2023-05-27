@@ -134,12 +134,43 @@ router.get('posts/space/:id', function (req, res) {
             return {post, space, user}
     `
     const results = db._query(query, {root_space: space._id}).toArray()
-    
+
     res.send( { results } )
 })
 .response(joi.object().required(), 'Posts')
 .summary('Retrieve all posts from a given space ID')
 .description('Retrieve all posts from a given space ID');
+
+// Retrieve by space's path
+router.post('posts/space_path/', function (req, res) {
+    const body = req.body;
+
+    const query = `
+    let root_space = (
+        FOR space in spaces
+            FILTER space.abs_path == @abs_path
+            return space
+    )[0]
+    for space, edge in 0..10 OUTBOUND root_space space_structure
+        FOR post IN INBOUND space posted_to
+            let user = (
+                for v, e in
+                OUTBOUND
+                post posted_by
+                let user = document(e._to)
+                return {username: user._key,
+                        display_name: user.display_name}
+            )[0]
+            return {post, space, user}
+    `
+    const results = db._query(query, {abs_path: body.space_path}).toArray()
+    res.send( { results } )
+})
+.body(joi.object({
+    space_path: joi.string().required()
+}).required(), 'Spaces absolute path')
+.summary('List all posts under a space path')
+.description("List all posts under a space with the given absolute path");
 
 // Retrieve by ID
 router.get('posts/get/:id', function (req, res) {
